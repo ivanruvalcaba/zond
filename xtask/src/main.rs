@@ -1,10 +1,34 @@
 use {
     clap_complete::{generate_to, shells},
     clap_mangen::Man,
+    pulldown_cmark::{html, Parser},
     std::{env, error::Error, fs, path::PathBuf, process},
 };
 
 include!("../../src/cli.rs");
+
+fn docs() -> Result<(), std::io::Error> {
+    let docs = ["build.md", "customizing.md", "index.md", "page.md", "post.md"];
+    let outdir: PathBuf = ["target", "dist", "share", "doc", "zond"]
+        .iter()
+        .collect();
+    if !outdir.exists() {
+        fs::create_dir_all(&outdir)?;
+    }
+    for doc in docs {
+        let mut outfile = outdir.clone();
+        outfile.push(doc);
+        outfile.set_extension("html");
+        let infile: PathBuf = ["doc", doc].iter().collect();
+        let mdstr = fs::read_to_string(&infile)?;
+        let mdstr = mdstr.replace(".md", ".html");
+        let parser = Parser::new(&mdstr);
+        let fd = fs::File::create(&outfile)?;
+        html::write_html(fd, parser)?;
+        println!("    {} -> {}", infile.display(), outfile.display());
+    }
+    Ok(())
+}
 
 fn completions() -> Result<(), Box<dyn Error>> {
     println!("Generating completions:");
@@ -112,6 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         copy_bin()?;
         completions()?;
         manpages()?;
+        docs()?;
     } else {
         usage();
     }
